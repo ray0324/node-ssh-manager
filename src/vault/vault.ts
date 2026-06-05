@@ -17,7 +17,8 @@ export class Vault<T = unknown> {
     await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
     const salt = randomBytes(16);
     const key = await deriveKey(password, salt);
-    const v = new Vault<T>(file, key, salt, initial);
+    const cloned = JSON.parse(JSON.stringify(initial)) as T;
+    const v = new Vault<T>(file, key, salt, cloned);
     await v.save();
     return v;
   }
