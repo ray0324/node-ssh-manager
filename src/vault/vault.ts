@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile, chmod } from 'node:fs/promises';
+import { mkdir, open, readFile, rename } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { deriveKey } from '../crypto/kdf.js';
@@ -38,8 +38,13 @@ export class Vault<T = unknown> {
     const ct = encrypt(this.key, iv, pt);
     const blob = packFile(this.salt, iv, ct);
     const tmp = `${this.file}.tmp`;
-    await writeFile(tmp, blob, { mode: 0o600 });
+    const fh = await open(tmp, 'w', 0o600);
+    try {
+      await fh.writeFile(blob);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
     await rename(tmp, this.file);
-    await chmod(this.file, 0o600);
   }
 }
