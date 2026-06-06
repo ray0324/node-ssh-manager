@@ -11,9 +11,51 @@ import { ServicesProvider } from './ui/context.js';
 import { App } from './ui/App.js';
 import { InitScreen } from './ui/screens/InitScreen.js';
 import { UnlockScreen } from './ui/screens/UnlockScreen.js';
-import readline from 'node:readline';
 
 const paths = defaultPaths();
+
+/**
+ * Prompt the user for a single-key yes/no (y/Y → true, anything else → false).
+ * Uses raw mode + a direct stdin 'data' listener — this is more reliable than
+ * readline immediately after Ink unmounts, since the data listener itself
+ * keeps the event loop alive.
+ */
+function promptYesNo(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const stdin = process.stdin as any;
+    const hadRaw = typeof stdin.setRawMode === 'function';
+    if (hadRaw) stdin.setRawMode(true);
+    if (typeof stdin.ref === 'function') stdin.ref();
+    stdin.resume();
+    const onData = (chunk: Buffer) => {
+      const ch = chunk.toString('utf8')[0] ?? '';
+      stdin.off('data', onData);
+      if (hadRaw) stdin.setRawMode(false);
+      stdin.pause();
+      process.stdout.write(`${ch}\n`);
+      resolve(ch === 'y' || ch === 'Y');
+    };
+    stdin.on('data', onData);
+  });
+}
+
+/** Wait for any single key. Same rationale as promptYesNo. */
+function waitForAnyKey(): Promise<void> {
+  return new Promise((resolve) => {
+    const stdin = process.stdin as any;
+    const hadRaw = typeof stdin.setRawMode === 'function';
+    if (hadRaw) stdin.setRawMode(true);
+    if (typeof stdin.ref === 'function') stdin.ref();
+    stdin.resume();
+    const onData = () => {
+      stdin.off('data', onData);
+      if (hadRaw) stdin.setRawMode(false);
+      stdin.pause();
+      resolve();
+    };
+    stdin.on('data', onData);
+  });
+}
 
 async function readMasterPassword(prompt: 'init' | 'unlock'): Promise<{
   vault: Vault<VaultData>;
@@ -56,21 +98,30 @@ async function runMain(vault: Vault<VaultData>) {
   // Connect handler: unmount Ink, run SSH session, then re-render.
   const runUi = (): Promise<Host | null> =>
     new Promise((resolve) => {
+      let picked: Host | null = null;
       const ui = render(
         <ServicesProvider vault={vault} repo={repo}>
           <App
             onConnect={(h) => {
+              picked = h;
               ui.unmount();
-              ui.waitUntilExit().then(() => resolve(h));
             }}
           />
         </ServicesProvider>,
       );
-      ui.waitUntilExit().then(() => resolve(null));
+      ui.waitUntilExit().then(() => {
+        if (process.env.SSHM_DEBUG) {
+          process.stderr.write(`[debug] runUi resolved picked=${picked?.alias ?? 'null'}\n`);
+        }
+        resolve(picked);
+      });
     });
 
   while (true) {
     const target = await runUi();
+    if (process.env.SSHM_DEBUG) {
+      process.stderr.write(`[debug] target=${target?.alias ?? 'null'}\n`);
+    }
     if (!target) return; // user quit
 
     const onUnknownHost = async (
@@ -81,10 +132,7 @@ async function runMain(vault: Vault<VaultData>) {
       process.stdout.write(
         `\n首次连接 ${host}:${port}\n指纹: ${fingerprint}\n是否信任此主机? [y/N] `,
       );
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const answer = await new Promise<string>((res) => rl.question('', (a) => res(a)));
-      rl.close();
-      return /^y(es)?$/i.test(answer.trim());
+      return await promptYesNo();
     };
 
     const client = new SshClient({
@@ -103,7 +151,10 @@ async function runMain(vault: Vault<VaultData>) {
       },
     });
 
-    process.stdin.setRawMode?.(true);
+    process.stdin.setRawMode?.(false);
+    if (process.env.SSHM_DEBUG) {
+      process.stderr.write(`[debug] starting client.connect to ${target.alias}\n`);
+    }
     let exitCode = 0;
     try {
       exitCode = await client.connect(target);
@@ -111,18 +162,10 @@ async function runMain(vault: Vault<VaultData>) {
       process.stderr.write(`\n[连接错误] ${e.message ?? e}\n`);
     } finally {
       process.stdin.setRawMode?.(false);
-      process.stdin.pause();
     }
 
     process.stdout.write(`\n[已断开 ${target.alias}, 退出码 ${exitCode},按任意键返回列表]\n`);
-    await new Promise<void>((res) => {
-      const onData = () => {
-        process.stdin.off('data', onData);
-        res();
-      };
-      process.stdin.resume();
-      process.stdin.once('data', onData);
-    });
+    await waitForAnyKey();
   }
 }
 

@@ -23,6 +23,7 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
   });
   const [focus, setFocus] = useState<Field>('alias');
   const [err, setErr] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   const moveFocus = (dir: 1 | -1) => {
     const idx = FIELDS.indexOf(focus);
@@ -33,6 +34,7 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
   useInput((input, key) => {
     if (key.escape) onCancel();
     else if (key.ctrl && input === 's') trySave();
+    else if (key.ctrl && input === 'r') setShowPw((v) => !v);
     else if (key.tab && key.shift) moveFocus(-1);
     else if (key.tab) moveFocus(1);
   });
@@ -82,7 +84,7 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
         {row('host', 'host:')}
         {row('port', 'port:')}
         {row('user', 'user:')}
-        {row('password', '密码:', '•')}
+        {row('password', '密码:', showPw ? undefined : '•')}
         {row('note', '备注:')}
       </Box>
       {err && (
@@ -91,7 +93,9 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
         </Box>
       )}
       <Box marginTop={1}>
-        <Text color="gray">Tab/↑↓ 切换字段   Enter 下一项   Ctrl-S 保存   Esc 取消</Text>
+        <Text color="gray">
+          Tab/↑↓ 切换字段   Enter 下一项   Ctrl-S 保存   Ctrl-R 显示/隐藏密码   Esc 取消
+        </Text>
       </Box>
     </Box>
   );

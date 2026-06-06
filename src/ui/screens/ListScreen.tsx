@@ -17,11 +17,16 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
   const { exit } = useApp();
   const [cursor, setCursor] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<Host | null>(null);
+  const [reveal, setReveal] = useState<Host | null>(null);
 
   const selected = hosts[cursor];
 
   useInput((input, key) => {
     if (pendingDelete) return; // modal owns input
+    if (reveal) {
+      setReveal(null);
+      return;
+    }
     if (key.upArrow || input === 'k') setCursor((c) => Math.max(0, c - 1));
     else if (key.downArrow || input === 'j')
       setCursor((c) => Math.min(Math.max(hosts.length - 1, 0), c + 1));
@@ -29,6 +34,7 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
     else if (input === 'a') onAdd();
     else if (input === 'e' && selected) onEdit(selected);
     else if (input === 'd' && selected) setPendingDelete(selected);
+    else if (input === 'p' && selected) setReveal(selected);
     else if (input === 'q') exit();
   });
 
@@ -40,7 +46,7 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
         <Text color="gray">{hosts.length} hosts</Text>
       </Box>
       <HostList hosts={hosts} selectedId={selected?.id ?? null} />
-      <Footer hints="↑↓ 选择   Enter 连接   a 添加   e 编辑   d 删除   q 退出" />
+      <Footer hints="↑↓ 选择   Enter 连接   a 添加   e 编辑   d 删除   p 查看密码   q 退出" />
       {pendingDelete && (
         <ConfirmModal
           message={`确认删除 "${pendingDelete.alias}" ?`}
@@ -52,6 +58,13 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
           }}
           onCancel={() => setPendingDelete(null)}
         />
+      )}
+      {reveal && (
+        <Box marginTop={1} borderStyle="round" paddingX={1} flexDirection="column">
+          <Text bold>{reveal.alias} 的密码</Text>
+          <Text color="yellow">{reveal.password}</Text>
+          <Text color="gray">按任意键关闭</Text>
+        </Box>
       )}
     </Box>
   );

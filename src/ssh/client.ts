@@ -17,11 +17,61 @@ export interface SshClientOptions {
   onResize?: (cb: (rows: number, cols: number) => void) => () => void;
 }
 
+/**
+ * Pre-flight: open a TCP connection just long enough to fetch the host key,
+ * then close it. Used to prompt the user for fingerprint trust BEFORE the
+ * real interactive session takes over stdin.
+ */
+function fetchHostKey(host: string, port: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const probe = new Ssh2Client();
+    let got = false;
+    probe.on('error', (e) => {
+      // After we've captured the key and ended the probe, server-side
+      // teardown errors (KEX abort, auth failure) surface here — ignore them.
+      if (got) return;
+      reject(e);
+    });
+    probe.on('close', () => {
+      if (!got) reject(new Error('probe closed before host key was received'));
+    });
+    probe.connect({
+      host,
+      port,
+      username: '__probe__',
+      readyTimeout: 15000,
+      hostVerifier: ((key: Buffer, cb: (ok: boolean) => void) => {
+        got = true;
+        resolve(Buffer.from(key));
+        // Accept so KEX completes cleanly, then immediately tear down. The
+        // server won't fault and we avoid noisy KEY_EXCHANGE_FAILED events.
+        cb(true);
+        setImmediate(() => probe.end());
+      }) as any,
+    });
+  });
+}
+
 export class SshClient {
   constructor(private readonly opts: SshClientOptions) {}
 
   async connect(host: Host): Promise<number> {
     await this.opts.knownHosts.load();
+
+    // Resolve fingerprint trust BEFORE the interactive session grabs stdin.
+    // Otherwise the y/N prompt races with the ssh shell for keystrokes.
+    let approvedFingerprint: string;
+    const existing = this.opts.knownHosts.find(host.host, host.port);
+    if (existing) {
+      approvedFingerprint = existing.fingerprint;
+    } else {
+      const key = await fetchHostKey(host.host, host.port);
+      const fp = KnownHosts.fingerprintOf(key);
+      const trust = await this.opts.onUnknownHost(fp, host.host, host.port);
+      if (!trust) throw new Error(`host fingerprint not trusted (${fp})`);
+      await this.opts.knownHosts.add({ host: host.host, port: host.port, fingerprint: fp });
+      approvedFingerprint = fp;
+    }
 
     return new Promise<number>((resolve, reject) => {
       const client = new Ssh2Client();
@@ -41,6 +91,13 @@ export class SshClient {
           (err, stream) => {
             if (err) return finish(() => reject(err));
 
+            const stdinAny = this.opts.stdin as any;
+            const hadRawMode = typeof stdinAny.setRawMode === 'function';
+            const wasRaw = hadRawMode ? stdinAny.isRaw === true : false;
+            if (hadRawMode) stdinAny.setRawMode(true);
+            if (typeof stdinAny.ref === 'function') stdinAny.ref();
+            if (typeof stdinAny.resume === 'function') stdinAny.resume();
+
             this.opts.stdin.pipe(stream);
             stream.pipe(this.opts.stdout);
             stream.stderr.pipe(this.opts.stderr);
@@ -59,27 +116,15 @@ export class SshClient {
             stream.on('close', () => {
               this.opts.stdin.unpipe(stream);
               unsubResize?.();
+              if (hadRawMode) stdinAny.setRawMode(wasRaw);
               finish(() => resolve(exitCode));
             });
           },
         );
       });
 
-      const hv = async (key: Buffer, cb: (ok: boolean) => void) => {
-        const fp = KnownHosts.fingerprintOf(key);
-        const existing = this.opts.knownHosts.find(host.host, host.port);
-        if (existing) {
-          cb(existing.fingerprint === fp);
-          return;
-        }
-        const trust = await this.opts.onUnknownHost(fp, host.host, host.port);
-        if (!trust) {
-          finish(() => reject(new Error(`host fingerprint not trusted (${fp})`)));
-          cb(false);
-          return;
-        }
-        await this.opts.knownHosts.add({ host: host.host, port: host.port, fingerprint: fp });
-        cb(true);
+      const hv = (key: Buffer, cb: (ok: boolean) => void) => {
+        cb(KnownHosts.fingerprintOf(key) === approvedFingerprint);
       };
 
       client.connect({
