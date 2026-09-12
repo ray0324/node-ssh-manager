@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 
 interface Props {
@@ -11,14 +11,17 @@ export function ConfirmModal({ message, onConfirm, onCancel }: Props) {
   const [focus, setFocus] = useState<'cancel' | 'ok'>('cancel');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmLock = useRef(false);
 
   const confirm = async () => {
-    if (busy) return;
+    if (confirmLock.current) return;
+    confirmLock.current = true;
     setBusy(true);
     setError(null);
     try {
       await onConfirm();
     } catch {
+      confirmLock.current = false;
       setError('删除失败，请重试');
       setBusy(false);
     }

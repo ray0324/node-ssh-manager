@@ -36,7 +36,6 @@ describe('ConfirmModal', () => {
     stdin.write('\t');
     await flush();
     stdin.write('\r');
-    await flush();
     stdin.write('\r');
     await flush();
 
