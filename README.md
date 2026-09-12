@@ -1,34 +1,34 @@
-# sshm
+# node-sshm
 
-单用户本地 TUI SSH 连接管理器，主机条目存放在加密 vault 中。
-
-## MVP 范围
-
-- 仅支持密码认证（不支持 SSH key / agent / ProxyJump）
-- 单用户、单机本地使用（无多端同步、无团队共享）
-- 无导入/导出，无 SSH config 解析
+单用户本地 TUI SSH 连接管理器。安装后使用命令 `sshm`，主机条目存放在加密 vault 中。
 
 ## 安装
 
-```
-npm install
-npm run build
-```
-
-## 运行
+需要 [Node.js](https://nodejs.org/) 18+。
 
 ```
-node bin/sshm.js
+npm install -g node-sshm
 ```
 
-或全局链接后使用：
+也可直接运行，不全局安装：
 
 ```
-npm link
+npx --package node-sshm sshm
+```
+
+## 使用
+
+```
 sshm
 ```
 
 首次运行会引导设置主密码并创建空 vault。
+
+## 当前限制
+
+- 仅支持密码认证（不支持 SSH key / agent / ProxyJump）
+- 单用户、单机本地使用（无多端同步、无团队共享）
+- 无导入/导出，无 SSH config 解析
 
 ## 主界面快捷键
 
@@ -51,3 +51,21 @@ sshm
 ## 加密说明
 
 Vault 使用 AES-256-GCM 加密，密钥由主密码经 scrypt KDF 派生。**忘记主密码 = 永久丢失所有数据**，没有任何恢复机制，请妥善保管。
+
+## 从源码开发
+
+```
+pnpm install
+pnpm build
+node bin/sshm.js
+```
+
+开发时也可直接：
+
+```
+pnpm dev
+```
+
+## License
+
+MIT

@@ -1,33 +1,51 @@
 {
-  "name": "sshm",
+  "name": "node-sshm",
   "version": "0.1.0",
-  "private": true,
+  "description": "Local TUI SSH host manager with an encrypted vault",
+  "keywords": [
+    "ssh",
+    "ssh-manager",
+    "tui",
+    "cli",
+    "terminal",
+    "ink",
+    "vault"
+  ],
+  "license": "MIT",
+  "author": "ray0324 <ray0324@foxmail.com>",
   "type": "module",
   "bin": {
     "sshm": "bin/sshm.js"
   },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc -p .",
+    "prepack": "npm run build",
     "dev": "tsx src/index.tsx",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "ink": "^5.0.1",
+    "ink": "^5.2.1",
     "ink-text-input": "^6.0.0",
-    "nanoid": "^5.0.7",
+    "nanoid": "^5.1.16",
     "react": "^18.3.1",
-    "ssh2": "^1.15.0",
-    "sshm": "link:",
-    "zod": "^3.23.8"
+    "ssh2": "^1.17.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^20.12.12",
-    "@types/react": "^18.3.3",
-    "@types/ssh2": "^1.15.0",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/ssh2": "^1.15.6",
     "ink-testing-library": "^4.0.0",
-    "tsx": "^4.11.0",
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
   }
 }

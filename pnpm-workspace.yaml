@@ -2,5 +2,3 @@ allowBuilds:
   cpu-features: true
   esbuild: true
   ssh2: true
-overrides:
-  sshm: 'link:'
