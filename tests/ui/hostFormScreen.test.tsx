@@ -2,12 +2,34 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import { HostFormScreen } from '../../src/ui/screens/HostFormScreen.js';
+import { Host, HostInput } from '../../src/hosts/types.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 interface TestStdin {
   write: (input: string) => void;
 }
+
+const VALID_HOST: Host = {
+  id: 'host-1',
+  alias: 'demo',
+  host: 'server',
+  port: 22,
+  user: 'root',
+  password: 'secret',
+  note: 'note',
+  createdAt: '',
+  updatedAt: '',
+};
+
+const VALID_INPUT: HostInput = {
+  alias: 'demo',
+  host: 'server',
+  port: 22,
+  user: 'root',
+  password: 'secret',
+  note: 'note',
+};
 
 async function fillValidForm(stdin: TestStdin) {
   await flush();
@@ -58,22 +80,45 @@ describe('HostFormScreen', () => {
     expect(lastFrame()).toContain('› 别名');
   });
 
-  it('rejects an invalid port in Chinese', async () => {
+  it.each([
+    {
+      field: 'host' as const,
+      message: '请输入主机地址',
+      label: '› 主机',
+    },
+    { field: 'user' as const, message: '请输入用户', label: '› 用户' },
+    {
+      field: 'password' as const,
+      message: '请输入密码',
+      label: '› 密码',
+    },
+  ])('validates and focuses an empty $field', async (required) => {
     const { stdin, lastFrame } = render(
-      <HostFormScreen onSave={vi.fn()} onCancel={vi.fn()} />,
+      <HostFormScreen
+        initial={{ ...VALID_HOST, [required.field]: '' }}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+      />,
     );
-    await fillValidForm(stdin);
-    stdin.write('\u001b[Z');
     await flush();
-    stdin.write('\u001b[Z');
+    stdin.write('\x13');
     await flush();
-    stdin.write('\u001b[Z');
-    await flush();
-    stdin.write('\x7f');
-    await flush();
-    stdin.write('\x7f');
-    await flush();
-    stdin.write('0');
+    expect(lastFrame()).toContain(required.message);
+    expect(lastFrame()).toContain(required.label);
+  });
+
+  it.each([
+    ['fractional', 1.5],
+    ['nonnumeric', Number.NaN],
+    ['too large', 65536],
+  ])('rejects a %s port in Chinese', async (_case, port) => {
+    const { stdin, lastFrame } = render(
+      <HostFormScreen
+        initial={{ ...VALID_HOST, port }}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
     await flush();
     stdin.write('\x13');
     await flush();
@@ -93,14 +138,73 @@ describe('HostFormScreen', () => {
     expect(lastFrame()).toContain('› 别名');
   });
 
-  it('locks rapid duplicate saves while onSave is pending', async () => {
-    let resolveSave!: () => void;
-    const onSave = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveSave = resolve;
-        }),
+  it('moves with Enter and submits from the note field', async () => {
+    const onSave = vi.fn(async () => {});
+    const { stdin, lastFrame } = render(
+      <HostFormScreen
+        initial={VALID_HOST}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
     );
+    await flush();
+
+    for (const label of ['主机', '端口', '用户', '密码', '备注']) {
+      stdin.write('\r');
+      await flush();
+      expect(lastFrame()).toContain(`› ${label}`);
+    }
+    stdin.write('\r');
+    await flush();
+
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave).toHaveBeenCalledWith(VALID_INPUT);
+  });
+
+  it('clears a field error when that field is edited', async () => {
+    const { stdin, lastFrame } = render(
+      <HostFormScreen onSave={vi.fn()} onCancel={vi.fn()} />,
+    );
+    await flush();
+    stdin.write('\x13');
+    await flush();
+    expect(lastFrame()).toContain('请输入别名');
+
+    stdin.write('d');
+    await flush();
+    expect(lastFrame()).not.toContain('请输入别名');
+  });
+
+  it('runs Ctrl+R without inserting text into the focused field', async () => {
+    const onSave = vi.fn(async () => {});
+    const { stdin, lastFrame } = render(
+      <HostFormScreen
+        initial={VALID_HOST}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    await flush();
+    stdin.write('\x12');
+    await flush();
+    expect(lastFrame()).toContain('secret');
+
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledWith(VALID_INPUT);
+  });
+
+  it('locks rapid duplicate saves while onSave is pending', async () => {
+    let rejectSave!: (error: Error) => void;
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectSave = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
     const { stdin, lastFrame } = render(
       <HostFormScreen onSave={onSave} onCancel={vi.fn()} />,
     );
@@ -111,14 +215,47 @@ describe('HostFormScreen', () => {
     await flush();
 
     expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave).toHaveBeenCalledWith(VALID_INPUT);
     expect(lastFrame()).toContain('正在保存…');
-    resolveSave();
+    stdin.write('changed');
+    await flush();
+    rejectSave(new Error('network unavailable'));
+    await flush();
+    expect(lastFrame()).toContain('保存失败，请重试');
+    await flush();
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave).toHaveBeenNthCalledWith(2, VALID_INPUT);
   });
 
-  it('translates duplicate alias failures and keeps input', async () => {
-    const onSave = vi.fn(async () => {
-      throw new Error('alias "demo" already exists');
-    });
+  it('translates generic save errors and permits a retry', async () => {
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValue(undefined);
+    const { stdin, lastFrame } = render(
+      <HostFormScreen
+        initial={VALID_HOST}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    await flush();
+    stdin.write('\x13');
+    await flush();
+    expect(lastFrame()).toContain('保存失败，请重试');
+
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledTimes(2);
+  });
+
+  it('focuses aliases and retains every field for retry', async () => {
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('alias "demo" already exists'))
+      .mockResolvedValue(undefined);
     const { stdin, lastFrame } = render(
       <HostFormScreen onSave={onSave} onCancel={vi.fn()} />,
     );
@@ -128,5 +265,12 @@ describe('HostFormScreen', () => {
     await flush();
     expect(lastFrame()).toContain('该别名已存在');
     expect(lastFrame()).toContain('demo');
+    expect(lastFrame()).toContain('› 别名');
+
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave).toHaveBeenNthCalledWith(1, VALID_INPUT);
+    expect(onSave).toHaveBeenNthCalledWith(2, VALID_INPUT);
   });
 });

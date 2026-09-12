@@ -60,6 +60,7 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
   const [error, setError] = useState<FormError | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const shortcutRef = useRef(false);
   const [showPw, setShowPw] = useState(false);
 
   const moveFocus = (dir: 1 | -1) => {
@@ -68,12 +69,23 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
     setFocus(FIELDS[next]);
   };
 
+  const markShortcut = () => {
+    shortcutRef.current = true;
+    setImmediate(() => {
+      shortcutRef.current = false;
+    });
+  };
+
   useInput((input, key) => {
     if (saving) return;
     if (key.escape) onCancel();
-    else if (key.ctrl && input === 's') void trySave();
-    else if (key.ctrl && input === 'r') setShowPw((v) => !v);
-    else if (key.tab && key.shift) moveFocus(-1);
+    else if (key.ctrl && input === 's') {
+      markShortcut();
+      void trySave();
+    } else if (key.ctrl && input === 'r') {
+      markShortcut();
+      setShowPw((visible) => !visible);
+    } else if (key.tab && key.shift) moveFocus(-1);
     else if (key.tab) moveFocus(1);
   });
 
@@ -126,14 +138,18 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
           <TextInput
             value={values[field]}
             onChange={(value) => {
-              setValues((current) => ({ ...current, [field]: value }));
-              if (error?.field === field) setError(null);
+              queueMicrotask(() => {
+                if (savingRef.current || shortcutRef.current) return;
+                setValues((current) => ({ ...current, [field]: value }));
+                if (error?.field === field) setError(null);
+              });
             }}
             onSubmit={() => {
               if (field === 'note') void trySave();
               else moveFocus(1);
             }}
             mask={mask}
+            focus={!saving}
           />
         ) : (
           <Text>
