@@ -4,3 +4,4 @@ coverage/
 .worktrees/
 *.log
 .DS_Store
+.pnpm-store/
