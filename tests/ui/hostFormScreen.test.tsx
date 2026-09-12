@@ -108,6 +108,7 @@ describe('HostFormScreen', () => {
   });
 
   it.each([
+    ['zero', 0],
     ['fractional', 1.5],
     ['nonnumeric', Number.NaN],
     ['too large', 65536],
@@ -123,6 +124,21 @@ describe('HostFormScreen', () => {
     stdin.write('\x13');
     await flush();
     expect(lastFrame()).toContain('端口必须是 1–65535 之间的整数');
+  });
+
+  it.each([1, 65535])('accepts boundary port %i', async (port) => {
+    const onSave = vi.fn(async () => {});
+    const { stdin } = render(
+      <HostFormScreen
+        initial={{ ...VALID_HOST, port }}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    await flush();
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledWith({ ...VALID_INPUT, port });
   });
 
   it('supports forward and reverse field navigation', async () => {
@@ -192,6 +208,42 @@ describe('HostFormScreen', () => {
     stdin.write('\x13');
     await flush();
     expect(onSave).toHaveBeenCalledWith(VALID_INPUT);
+  });
+
+  it('retains normal input immediately following Ctrl+R', async () => {
+    const onSave = vi.fn(async () => {});
+    const { stdin } = render(
+      <HostFormScreen
+        initial={VALID_HOST}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    await flush();
+    stdin.write('\x12');
+    stdin.write('x');
+    await flush();
+    stdin.write('\x13');
+    await flush();
+    expect(onSave).toHaveBeenCalledWith({
+      ...VALID_INPUT,
+      alias: 'demox',
+    });
+  });
+
+  it('retains normal input immediately following invalid Ctrl+S', async () => {
+    const { stdin, lastFrame } = render(
+      <HostFormScreen onSave={vi.fn()} onCancel={vi.fn()} />,
+    );
+    await flush();
+    stdin.write('\x13');
+    stdin.write('d');
+    await flush();
+    expect(lastFrame()).not.toContain('请输入别名');
+
+    stdin.write('\x13');
+    await flush();
+    expect(lastFrame()).toContain('请输入主机地址');
   });
 
   it('locks rapid duplicate saves while onSave is pending', async () => {

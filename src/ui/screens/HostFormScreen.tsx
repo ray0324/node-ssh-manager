@@ -71,7 +71,7 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
 
   const markShortcut = () => {
     shortcutRef.current = true;
-    setImmediate(() => {
+    queueMicrotask(() => {
       shortcutRef.current = false;
     });
   };
@@ -138,11 +138,13 @@ export function HostFormScreen({ initial, onSave, onCancel }: Props) {
           <TextInput
             value={values[field]}
             onChange={(value) => {
-              queueMicrotask(() => {
-                if (savingRef.current || shortcutRef.current) return;
-                setValues((current) => ({ ...current, [field]: value }));
-                if (error?.field === field) setError(null);
-              });
+              if (shortcutRef.current) {
+                shortcutRef.current = false;
+                return;
+              }
+              if (savingRef.current) return;
+              setValues((current) => ({ ...current, [field]: value }));
+              if (error?.field === field) setError(null);
             }}
             onSubmit={() => {
               if (field === 'note') void trySave();
