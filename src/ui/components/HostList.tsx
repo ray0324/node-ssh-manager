@@ -11,20 +11,27 @@ export function HostList({
 }) {
   if (hosts.length === 0) {
     return (
-      <Box paddingX={1}>
-        <Text color="gray">(no hosts yet — press 'a' to add one)</Text>
+      <Box paddingX={1} paddingY={1}>
+        <Text color="gray">还没有主机，按 </Text>
+        <Text bold color="cyan">
+          a
+        </Text>
+        <Text color="gray"> 添加第一台主机</Text>
       </Box>
     );
   }
   return (
-    <Box flexDirection="column" paddingX={1}>
-      {hosts.map((h) => {
-        const sel = h.id === selectedId;
-        const prefix = sel ? '> ' : '  ';
+    <Box flexDirection="column" paddingX={1} paddingY={1}>
+      {hosts.map((host) => {
+        const selected = host.id === selectedId;
         return (
-          <Text key={h.id} inverse={sel}>
-            {prefix}
-            {h.alias.padEnd(20)} {h.user}@{h.host}:{h.port}
+          <Text
+            key={host.id}
+            inverse={selected}
+            color={selected ? 'cyan' : undefined}
+          >
+            {selected ? '› ' : '  '}
+            {host.alias.padEnd(20)} {host.user}@{host.host}:{host.port}
           </Text>
         );
       })}

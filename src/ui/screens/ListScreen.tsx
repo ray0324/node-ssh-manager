@@ -41,12 +41,24 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
   return (
     <Box flexDirection="column">
       <Box borderStyle="round" paddingX={1}>
-        <Text bold>sshm v0.1</Text>
+        <Text bold>sshm · SSH 主机管理器</Text>
         <Box flexGrow={1} />
-        <Text color="gray">{hosts.length} hosts</Text>
+        <Text color="gray">{hosts.length} 台主机</Text>
       </Box>
       <HostList hosts={hosts} selectedId={selected?.id ?? null} />
-      <Footer hints="↑↓ 选择   Enter 连接   a 添加   e 编辑   d 删除   p 查看密码   q 退出" />
+      <Footer
+        primary={[
+          { key: '↑↓/jk', label: '选择' },
+          { key: 'Enter', label: '连接' },
+          { key: 'a', label: '添加' },
+          { key: 'e', label: '编辑' },
+        ]}
+        secondary={[
+          { key: 'd', label: '删除' },
+          { key: 'p', label: '查看密码' },
+          { key: 'q', label: '退出' },
+        ]}
+      />
       {pendingDelete && (
         <ConfirmModal
           message={`确认删除 "${pendingDelete.alias}" ?`}
