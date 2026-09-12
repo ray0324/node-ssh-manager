@@ -75,7 +75,7 @@ describe('ListScreen', () => {
   it('moves selection with j before connecting', async () => {
     const second = { ...hosts[0], id: 'h_2', alias: 'staging-web' };
     const onConnect = vi.fn();
-    const { stdin, lastFrame } = render(
+    const { stdin } = render(
       <ListScreen
         hosts={[hosts[0], second]}
         onConnect={onConnect}
@@ -91,5 +91,50 @@ describe('ListScreen', () => {
     stdin.write('\r');
     await flush();
     expect(onConnect).toHaveBeenCalledWith(second);
+  });
+
+  it('does not pass the password-close key through to list actions', async () => {
+    const onAdd = vi.fn();
+    const { stdin, lastFrame } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={onAdd}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await flush();
+    stdin.write('p');
+    await flush();
+    expect(lastFrame()).toContain('敏感信息 · prod-web-1');
+    expect(lastFrame()).toContain('x');
+    stdin.write('a');
+    await flush();
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('deletes once and closes confirmation after success', async () => {
+    const onDelete = vi.fn(async () => {});
+    const { stdin, lastFrame } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    await flush();
+    stdin.write('d');
+    await flush();
+    stdin.write('\t');
+    await flush();
+    stdin.write('\r');
+    await flush();
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(lastFrame()).not.toContain('确认删除');
   });
 });

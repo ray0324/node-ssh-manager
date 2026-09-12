@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { Host } from '../../hosts/types.js';
 import { HostList } from '../components/HostList.js';
@@ -21,6 +21,10 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
 
   const selected = hosts[cursor];
 
+  useEffect(() => {
+    setCursor((current) => Math.min(current, Math.max(hosts.length - 1, 0)));
+  }, [hosts.length]);
+
   useInput((input, key) => {
     if (pendingDelete) return; // modal owns input
     if (reveal) {
@@ -38,6 +42,34 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
     else if (input === 'q') exit();
   });
 
+  const footer = pendingDelete
+    ? {
+        primary: [
+          { key: '←→/Tab', label: '选择' },
+          { key: 'Enter', label: '确认' },
+          { key: 'Esc', label: '取消' },
+        ],
+        secondary: [],
+      }
+    : reveal
+      ? {
+          primary: [{ key: '任意键/Esc', label: '关闭密码' }],
+          secondary: [],
+        }
+      : {
+          primary: [
+            { key: '↑↓/jk', label: '选择' },
+            { key: 'Enter', label: '连接' },
+            { key: 'a', label: '添加' },
+            { key: 'e', label: '编辑' },
+          ],
+          secondary: [
+            { key: 'd', label: '删除' },
+            { key: 'p', label: '查看密码' },
+            { key: 'q', label: '退出' },
+          ],
+        };
+
   return (
     <Box flexDirection="column">
       <Box borderStyle="round" paddingX={1}>
@@ -46,36 +78,27 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
         <Text color="gray">{hosts.length} 台主机</Text>
       </Box>
       <HostList hosts={hosts} selectedId={selected?.id ?? null} />
-      <Footer
-        primary={[
-          { key: '↑↓/jk', label: '选择' },
-          { key: 'Enter', label: '连接' },
-          { key: 'a', label: '添加' },
-          { key: 'e', label: '编辑' },
-        ]}
-        secondary={[
-          { key: 'd', label: '删除' },
-          { key: 'p', label: '查看密码' },
-          { key: 'q', label: '退出' },
-        ]}
-      />
+      <Footer primary={footer.primary} secondary={footer.secondary} />
       {pendingDelete && (
         <ConfirmModal
-          message={`确认删除 "${pendingDelete.alias}" ?`}
+          message={`确认删除“${pendingDelete.alias}”？`}
           onConfirm={async () => {
-            const h = pendingDelete;
+            await onDelete(pendingDelete);
             setPendingDelete(null);
-            await onDelete(h);
-            setCursor((c) => Math.max(0, c - (c >= hosts.length - 1 ? 1 : 0)));
+            setCursor((current) =>
+              Math.min(current, Math.max(hosts.length - 2, 0)),
+            );
           }}
           onCancel={() => setPendingDelete(null)}
         />
       )}
       {reveal && (
         <Box marginTop={1} borderStyle="round" paddingX={1} flexDirection="column">
-          <Text bold>{reveal.alias} 的密码</Text>
-          <Text color="yellow">{reveal.password}</Text>
-          <Text color="gray">按任意键关闭</Text>
+          <Text bold color="yellow">
+            敏感信息 · {reveal.alias}
+          </Text>
+          <Text>{reveal.password}</Text>
+          <Text color="gray">按任意键或 Esc 关闭</Text>
         </Box>
       )}
     </Box>
