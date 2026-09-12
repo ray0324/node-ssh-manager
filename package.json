@@ -26,7 +26,7 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "prepack": "npm run build",
+    "prepack": "tsc -p .",
     "dev": "tsx src/index.tsx",
     "test": "vitest run",
     "test:watch": "vitest"
