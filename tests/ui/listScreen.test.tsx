@@ -3,7 +3,6 @@ import React, { type ReactElement } from 'react';
 import { EventEmitter } from 'node:events';
 import { render as inkRender } from 'ink';
 import { render } from 'ink-testing-library';
-import stringWidth from 'string-width';
 import { ListScreen } from '../../src/ui/screens/ListScreen.js';
 import { Host } from '../../src/hosts/types.js';
 
@@ -20,6 +19,28 @@ vi.mock('ink', async (importOriginal) => {
 const flush = () => new Promise((r) => setImmediate(r));
 
 const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, '');
+
+function isWideCodePoint(code: number): boolean {
+  return (
+    (code >= 0x1100 && code <= 0x115f) ||
+    (code >= 0x2e80 && code <= 0x9fff) ||
+    (code >= 0xac00 && code <= 0xd7a3) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0xfe10 && code <= 0xfe19) ||
+    (code >= 0xfe30 && code <= 0xfe6f) ||
+    (code >= 0xff00 && code <= 0xff60) ||
+    (code >= 0xffe0 && code <= 0xffe6)
+  );
+}
+
+function displayWidth(text: string): number {
+  let width = 0;
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    width += isWideCodePoint(code) ? 2 : 1;
+  }
+  return width;
+}
 
 class TestStdout extends EventEmitter {
   frames: string[] = [];
@@ -78,7 +99,7 @@ function renderAtWidth(tree: ReactElement, width = 80) {
 function assertFitsWidth(frame: string, maxWidth = 80) {
   const lines = frame.split('\n').filter((line) => line.length > 0);
   for (const line of lines) {
-    expect(stringWidth(stripAnsi(line))).toBeLessThanOrEqual(maxWidth);
+    expect(displayWidth(stripAnsi(line))).toBeLessThanOrEqual(maxWidth);
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 
@@ -14,10 +14,12 @@ export function UnlockScreen({
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const submit = async (password: string) => {
-    if (submitting || password.length === 0) return;
+    if (submittingRef.current || submitting || password.length === 0) return;
     setPw(password);
+    submittingRef.current = true;
     setSubmitting(true);
     setErr(null);
     try {
@@ -25,6 +27,7 @@ export function UnlockScreen({
     } catch {
       setErr('主密码错误，请重试');
       setPw('');
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

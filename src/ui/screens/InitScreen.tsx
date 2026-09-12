@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 
@@ -16,9 +16,10 @@ export function InitScreen({
   const [stage, setStage] = useState<'first' | 'confirm'>('first');
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const submitFirst = (password: string) => {
-    if (submitting) return;
+    if (submittingRef.current || submitting) return;
     if (password.length < 4) {
       setErr('主密码至少需要 4 个字符');
       return;
@@ -29,18 +30,20 @@ export function InitScreen({
   };
 
   const submitConfirm = async (confirm: string) => {
-    if (submitting) return;
+    if (submittingRef.current || submitting) return;
     if (pw !== confirm) {
       setErr('两次输入的主密码不一致');
       setPw2('');
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setErr(null);
     try {
       await onSubmit(pw);
     } catch {
       setErr('创建加密仓库失败，请重试');
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

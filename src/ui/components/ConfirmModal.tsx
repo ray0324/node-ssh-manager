@@ -28,7 +28,7 @@ export function ConfirmModal({ message, onConfirm, onCancel }: Props) {
   };
 
   useInput((input, key) => {
-    if (busy) return;
+    if (busy || confirmLock.current) return;
     if (key.leftArrow || key.rightArrow || input === 'h' || input === 'l' || key.tab) {
       setFocus((current) => (current === 'cancel' ? 'ok' : 'cancel'));
     } else if (key.return) {
