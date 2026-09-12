@@ -1,10 +1,86 @@
 import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
+import React, { type ReactElement } from 'react';
+import { EventEmitter } from 'node:events';
+import { render as inkRender } from 'ink';
 import { render } from 'ink-testing-library';
+import stringWidth from 'string-width';
 import { ListScreen } from '../../src/ui/screens/ListScreen.js';
 import { Host } from '../../src/hosts/types.js';
 
+const mockExit = vi.fn();
+
+vi.mock('ink', async (importOriginal) => {
+  const original = await importOriginal<typeof import('ink')>();
+  return {
+    ...original,
+    useApp: () => ({ exit: mockExit }),
+  };
+});
+
 const flush = () => new Promise((r) => setImmediate(r));
+
+const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, '');
+
+class TestStdout extends EventEmitter {
+  frames: string[] = [];
+  private last?: string;
+
+  constructor(private readonly width: number) {
+    super();
+  }
+
+  get columns() {
+    return this.width;
+  }
+
+  write = (frame: string) => {
+    this.frames.push(frame);
+    this.last = frame;
+  };
+
+  lastFrame = () => this.last;
+}
+
+class TestStderr extends EventEmitter {
+  write = () => {};
+  lastFrame = () => undefined;
+}
+
+class TestStdin extends EventEmitter {
+  isTTY = true;
+  write = () => {};
+  setRawMode = () => {};
+  setEncoding = () => {};
+  resume = () => {};
+  pause = () => {};
+  ref = () => {};
+  unref = () => {};
+  read = () => null;
+}
+
+function renderAtWidth(tree: ReactElement, width = 80) {
+  const stdout = new TestStdout(width);
+  const instance = inkRender(tree, {
+    stdout,
+    stderr: new TestStderr(),
+    stdin: new TestStdin(),
+    debug: true,
+    exitOnCtrlC: false,
+    patchConsole: false,
+  });
+
+  return {
+    lastFrame: () => stdout.lastFrame() ?? '',
+    unmount: () => instance.unmount(),
+  };
+}
+
+function assertFitsWidth(frame: string, maxWidth = 80) {
+  const lines = frame.split('\n').filter((line) => line.length > 0);
+  for (const line of lines) {
+    expect(stringWidth(stripAnsi(line))).toBeLessThanOrEqual(maxWidth);
+  }
+}
 
 const hosts: Host[] = [
   {
@@ -113,6 +189,68 @@ describe('ListScreen', () => {
     stdin.write('a');
     await flush();
     expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('fits header, selected row, and two-row footer within 80 columns', () => {
+    const { lastFrame, unmount } = renderAtWidth(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const frame = lastFrame();
+    assertFitsWidth(frame);
+    expect(frame).toContain('sshm · SSH 主机管理器');
+    expect(frame).toContain('1 台主机');
+    expect(frame).toContain('prod-web-1');
+    expect(frame).toContain('deploy@10.0.0.5:22');
+    expect(frame).toContain('↑↓/jk');
+    expect(frame).toContain('连接');
+    expect(frame).toContain('查看密码');
+    expect(frame).toContain('退出');
+    unmount();
+  });
+
+  it('fits empty-state copy and footer within 80 columns', () => {
+    const { lastFrame, unmount } = renderAtWidth(
+      <ListScreen
+        hosts={[]}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const frame = lastFrame();
+    assertFitsWidth(frame);
+    expect(frame).toContain('还没有主机，按 a 添加第一台主机');
+    expect(frame).toContain('0 台主机');
+    expect(frame).toContain('添加');
+    expect(frame).toContain('退出');
+    unmount();
+  });
+
+  it('exits when q is pressed on the normal list', async () => {
+    mockExit.mockClear();
+    const { stdin } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await flush();
+    stdin.write('q');
+    await flush();
+    expect(mockExit).toHaveBeenCalledOnce();
   });
 
   it('deletes once and closes confirmation after success', async () => {
