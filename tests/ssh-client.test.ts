@@ -16,7 +16,9 @@ function startServer(expectedUser: string, expectedPass: string) {
     publicKeyEncoding: { type: 'spki', format: 'pem' },
   });
 
+  const errors: Error[] = [];
   const server = new SshServer({ hostKeys: [privateKey] }, (client) => {
+    client.on('error', (error) => errors.push(error));
     client.on('authentication', (ctx) => {
       if (ctx.method === 'password' && ctx.username === expectedUser && ctx.password === expectedPass) {
         ctx.accept();
@@ -44,11 +46,12 @@ function startServer(expectedUser: string, expectedPass: string) {
     });
   });
 
-  return new Promise<{ port: number; close: () => Promise<void> }>((resolve) => {
+  return new Promise<{ port: number; errors: Error[]; close: () => Promise<void> }>((resolve) => {
     server.listen(0, '127.0.0.1', () => {
       const port = (server.address() as any).port;
       resolve({
         port,
+        errors,
         close: () =>
           new Promise<void>((res) => server.close(() => res())),
       });
@@ -174,5 +177,39 @@ describe('SshClient', () => {
         updatedAt: '',
       }),
     ).rejects.toThrow(/trust/i);
+  });
+
+  it('tears down host-key probes without corrupting SSH packets', async () => {
+    const srv = await startServer('alice', 'pw1');
+    const known = await tmpKnownHosts();
+    const client = new SshClient({
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      knownHosts: known,
+      onUnknownHost: async () => false,
+      term: 'xterm',
+      rows: 24,
+      cols: 80,
+    });
+
+    for (let i = 0; i < 10; i++) {
+      await expect(
+        client.connect({
+          id: 'x',
+          alias: 'x',
+          host: '127.0.0.1',
+          port: srv.port,
+          user: 'alice',
+          password: 'pw1',
+          note: '',
+          createdAt: '',
+          updatedAt: '',
+        }),
+      ).rejects.toThrow(/trust/i);
+    }
+
+    await srv.close();
+    expect(srv.errors.map((error) => error.message)).toEqual([]);
   });
 });

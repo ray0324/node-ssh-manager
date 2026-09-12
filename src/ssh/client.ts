@@ -43,10 +43,10 @@ function fetchHostKey(host: string, port: number): Promise<Buffer> {
       hostVerifier: ((key: Buffer, cb: (ok: boolean) => void) => {
         got = true;
         resolve(Buffer.from(key));
-        // Accept so KEX completes cleanly, then immediately tear down. The
-        // server won't fault and we avoid noisy KEY_EXCHANGE_FAILED events.
+        // Wait until both sides have installed their negotiated ciphers before
+        // sending the probe's disconnect packet.
+        probe.once('handshake', () => probe.end());
         cb(true);
-        setImmediate(() => probe.end());
       }) as any,
     });
   });
