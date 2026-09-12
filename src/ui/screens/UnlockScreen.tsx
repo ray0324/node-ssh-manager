@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 
+function stripReturn(value: string): string {
+  return value.replace(/\r/g, '');
+}
+
 export function UnlockScreen({
   onSubmit,
 }: {
@@ -9,15 +13,28 @@ export function UnlockScreen({
 }) {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = async () => {
+  const submit = async (password: string) => {
+    if (submitting || password.length === 0) return;
+    setPw(password);
+    setSubmitting(true);
     setErr(null);
     try {
-      await onSubmit(pw);
-    } catch (e: any) {
-      setErr('主密码错误,请重试');
+      await onSubmit(password);
+    } catch {
+      setErr('主密码错误，请重试');
       setPw('');
+      setSubmitting(false);
     }
+  };
+
+  const handlePwChange = (value: string) => {
+    if (value.includes('\r')) {
+      void submit(stripReturn(value));
+      return;
+    }
+    setPw(value);
   };
 
   return (
@@ -25,13 +42,20 @@ export function UnlockScreen({
       <Text bold>解锁 sshm</Text>
       <Box marginTop={1}>
         <Text>主密码: </Text>
-        <TextInput value={pw} onChange={setPw} onSubmit={submit} mask="•" />
+        <TextInput
+          value={pw}
+          onChange={handlePwChange}
+          onSubmit={submit}
+          mask="•"
+          focus={!submitting}
+        />
       </Box>
       {err && (
         <Box marginTop={1}>
           <Text color="red">{err}</Text>
         </Box>
       )}
+      {submitting && <Text color="yellow">正在解锁…</Text>}
     </Box>
   );
 }
