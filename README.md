@@ -1,4 +1,4 @@
-# node-sshm
+# node-ssh-manager
 
 单用户本地 TUI SSH 连接管理器。安装后使用命令 `sshm`，主机条目存放在加密 vault 中。
 
@@ -7,13 +7,13 @@
 需要 [Node.js](https://nodejs.org/) 18+。
 
 ```
-npm install -g node-sshm
+npm install -g node-ssh-manager
 ```
 
 也可直接运行，不全局安装：
 
 ```
-npx --package node-sshm sshm
+npx --package node-ssh-manager sshm
 ```
 
 ## 使用

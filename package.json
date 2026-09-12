@@ -1,5 +1,5 @@
 {
-  "name": "node-sshm",
+  "name": "node-ssh-manager",
   "version": "0.1.0",
   "description": "Local TUI SSH host manager with an encrypted vault",
   "keywords": [
