@@ -696,8 +696,6 @@ it('clears the success notice on the next list key', async () => {
 });
 ```
 
-Update 80-column assertions that list footer copy so they still expect `更改主密码` to be fully visible if those tests enumerate secondary hints.
-
 - [ ] **Step 2: Run list tests and verify failure**
 
 Run:
