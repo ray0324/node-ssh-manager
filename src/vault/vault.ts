@@ -1,5 +1,5 @@
 import { mkdir, open, readFile, rename } from 'node:fs/promises';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { deriveKey } from '../crypto/kdf.js';
 import { encrypt, decrypt } from '../crypto/aead.js';
@@ -8,8 +8,8 @@ import { packFile, unpackFile } from './format.js';
 export class Vault<T = unknown> {
   private constructor(
     private readonly file: string,
-    private readonly key: Buffer,
-    private readonly salt: Buffer,
+    private key: Buffer,
+    private salt: Buffer,
     public data: T,
   ) {}
 
@@ -33,10 +33,29 @@ export class Vault<T = unknown> {
   }
 
   async save(): Promise<void> {
+    await this.persist(this.key, this.salt);
+  }
+
+  async changePassword(current: string, next: string): Promise<void> {
+    if (next === current) {
+      throw new Error('new password must differ from current password');
+    }
+    const candidate = await deriveKey(current, this.salt);
+    if (!sameKey(candidate, this.key)) {
+      throw new Error('current password is incorrect');
+    }
+    const salt = randomBytes(16);
+    const key = await deriveKey(next, salt);
+    await this.persist(key, salt);
+    this.key = key;
+    this.salt = salt;
+  }
+
+  private async persist(key: Buffer, salt: Buffer): Promise<void> {
     const iv = randomBytes(12);
     const pt = Buffer.from(JSON.stringify(this.data), 'utf8');
-    const ct = encrypt(this.key, iv, pt);
-    const blob = packFile(this.salt, iv, ct);
+    const ct = encrypt(key, iv, pt);
+    const blob = packFile(salt, iv, ct);
     const tmp = `${this.file}.tmp`;
     const fh = await open(tmp, 'w', 0o600);
     try {
@@ -47,4 +66,9 @@ export class Vault<T = unknown> {
     }
     await rename(tmp, this.file);
   }
+}
+
+function sameKey(left: Buffer, right: Buffer): boolean {
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }

@@ -107,3 +107,66 @@ describe('Vault', () => {
     }
   });
 });
+
+describe('Vault.changePassword', () => {
+  it('rejects a wrong current password and leaves the file unchanged', async () => {
+    const { dir, file } = await tmpFile();
+    try {
+      const vault = await Vault.create(file, 'old-pass', { n: 1 });
+      await expect(vault.changePassword('nope', 'new-pass')).rejects.toThrow(
+        /current password is incorrect/,
+      );
+      const reloaded = await Vault.unlock<{ n: number }>(file, 'old-pass');
+      expect(reloaded.data).toEqual({ n: 1 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('re-encrypts so only the new password unlocks the same data', async () => {
+    const { dir, file } = await tmpFile();
+    try {
+      const vault = await Vault.create(file, 'old-pass', { n: 7 });
+      await vault.changePassword('old-pass', 'new-pass');
+      await expect(Vault.unlock(file, 'old-pass')).rejects.toThrow();
+      const reloaded = await Vault.unlock<{ n: number }>(file, 'new-pass');
+      expect(reloaded.data).toEqual({ n: 7 });
+      vault.data = { n: 8 };
+      await vault.save();
+      const afterSave = await Vault.unlock<{ n: number }>(file, 'new-pass');
+      expect(afterSave.data).toEqual({ n: 8 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a new password equal to the current password', async () => {
+    const { dir, file } = await tmpFile();
+    try {
+      const vault = await Vault.create(file, 'same-pass', { n: 1 });
+      await expect(vault.changePassword('same-pass', 'same-pass')).rejects.toThrow(
+        /new password must differ from current password/,
+      );
+      const reloaded = await Vault.unlock<{ n: number }>(file, 'same-pass');
+      expect(reloaded.data).toEqual({ n: 1 });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the old key when persist fails', async () => {
+    const { dir, file } = await tmpFile();
+    const blocker = `${file}.tmp`;
+    try {
+      const vault = await Vault.create(file, 'old-pass', { n: 1 });
+      const { mkdir } = await import('node:fs/promises');
+      await mkdir(blocker);
+      await expect(vault.changePassword('old-pass', 'new-pass')).rejects.toThrow();
+      const reloaded = await Vault.unlock<{ n: number }>(file, 'old-pass');
+      expect(reloaded.data).toEqual({ n: 1 });
+      await expect(Vault.unlock(file, 'new-pass')).rejects.toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
