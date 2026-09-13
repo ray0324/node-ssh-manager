@@ -11,6 +11,7 @@ import { ServicesProvider } from './ui/context.js';
 import { App } from './ui/App.js';
 import { InitScreen } from './ui/screens/InitScreen.js';
 import { UnlockScreen } from './ui/screens/UnlockScreen.js';
+import { clearTerminal } from './term/clearTerminal.js';
 
 const paths = defaultPaths();
 
@@ -124,6 +125,8 @@ async function runMain(vault: Vault<VaultData>) {
     }
     if (!target) return; // user quit
 
+    clearTerminal(process.stdout);
+
     const onUnknownHost = async (
       fingerprint: string,
       host: string,
@@ -132,7 +135,9 @@ async function runMain(vault: Vault<VaultData>) {
       process.stdout.write(
         `\n首次连接 ${host}:${port}\n指纹: ${fingerprint}\n是否信任此主机? [y/N] `,
       );
-      return await promptYesNo();
+      const trusted = await promptYesNo();
+      if (trusted) clearTerminal(process.stdout);
+      return trusted;
     };
 
     const client = new SshClient({
@@ -174,6 +179,7 @@ async function main() {
     const { vault } = existsSync(paths.vaultFile)
       ? await readMasterPassword('unlock')
       : await readMasterPassword('init');
+    clearTerminal(process.stdout);
     await runMain(vault);
   } catch (e: any) {
     if (e?.message !== 'cancelled') {
