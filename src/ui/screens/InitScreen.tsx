@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
+import { AuthBanner } from '../components/AuthBanner.js';
 
 function stripReturn(value: string): string {
   return value.replace(/\r/g, '');
@@ -67,10 +68,13 @@ export function InitScreen({
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Text bold>欢迎使用 sshm · 设置主密码</Text>
-      <Text color="gray">
-        主密码用于加密所有主机凭据，无法找回，请妥善保管。
-      </Text>
+      <AuthBanner />
+      <Box marginTop={1} flexDirection="column">
+        <Text bold>欢迎使用 sshm · 设置主密码</Text>
+        <Text color="gray">
+          主密码用于加密所有主机凭据，无法找回，请妥善保管。
+        </Text>
+      </Box>
       <Box marginTop={1}>
         <Text>主密码: </Text>
         {stage === 'first' ? (

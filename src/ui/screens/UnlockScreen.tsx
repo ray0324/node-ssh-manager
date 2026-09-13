@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
+import { AuthBanner } from '../components/AuthBanner.js';
 
 function stripReturn(value: string): string {
   return value.replace(/\r/g, '');
@@ -42,7 +43,10 @@ export function UnlockScreen({
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Text bold>解锁 sshm</Text>
+      <AuthBanner />
+      <Box marginTop={1}>
+        <Text bold>解锁</Text>
+      </Box>
       <Box marginTop={1}>
         <Text>主密码: </Text>
         <TextInput

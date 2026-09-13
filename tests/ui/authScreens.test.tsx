@@ -1,10 +1,26 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
+import { AUTH_BANNER_LINES } from '../../src/ui/components/AuthBanner.js';
 import { InitScreen } from '../../src/ui/screens/InitScreen.js';
 import { UnlockScreen } from '../../src/ui/screens/UnlockScreen.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+describe('auth banners', () => {
+  it('shows the shared banner on init and unlock', () => {
+    const init = render(<InitScreen onSubmit={vi.fn()} />).lastFrame() ?? '';
+    const unlock = render(<UnlockScreen onSubmit={vi.fn()} />).lastFrame() ?? '';
+    for (const line of AUTH_BANNER_LINES) {
+      expect(init).toContain(line);
+      expect(unlock).toContain(line);
+    }
+    expect(init).toContain('欢迎使用 sshm · 设置主密码');
+    expect(init).toContain('无法找回');
+    expect(unlock).toContain('解锁');
+    expect(unlock).not.toContain('解锁 sshm');
+  });
+});
 
 describe('InitScreen', () => {
   it('validates password length in Chinese', async () => {
