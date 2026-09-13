@@ -11,9 +11,21 @@ interface Props {
   onAdd: () => void;
   onEdit: (h: Host) => void;
   onDelete: (h: Host) => Promise<void>;
+  onChangePassword: () => void;
+  notice?: string | null;
+  onClearNotice?: () => void;
 }
 
-export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props) {
+export function ListScreen({
+  hosts,
+  onConnect,
+  onAdd,
+  onEdit,
+  onDelete,
+  onChangePassword,
+  notice = null,
+  onClearNotice,
+}: Props) {
   const { exit } = useApp();
   const [cursor, setCursor] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<Host | null>(null);
@@ -31,6 +43,7 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
       setReveal(null);
       return;
     }
+    if (notice) onClearNotice?.();
     if (key.upArrow || input === 'k') setCursor((c) => Math.max(0, c - 1));
     else if (key.downArrow || input === 'j')
       setCursor((c) => Math.min(Math.max(hosts.length - 1, 0), c + 1));
@@ -39,6 +52,7 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
     else if (input === 'e' && selected) onEdit(selected);
     else if (input === 'd' && selected) setPendingDelete(selected);
     else if (input === 'p' && selected) setReveal(selected);
+    else if (input === 'c') onChangePassword();
     else if (input === 'q') exit();
   });
 
@@ -66,6 +80,7 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
           secondary: [
             { key: 'd', label: '删除' },
             { key: 'p', label: '查看密码' },
+            { key: 'c', label: '更改主密码' },
             { key: 'q', label: '退出' },
           ],
         };
@@ -77,6 +92,11 @@ export function ListScreen({ hosts, onConnect, onAdd, onEdit, onDelete }: Props)
         <Box flexGrow={1} />
         <Text color="gray">{hosts.length} 台主机</Text>
       </Box>
+      {notice && (
+        <Box paddingX={1}>
+          <Text color="green">{notice}</Text>
+        </Box>
+      )}
       <HostList hosts={hosts} selectedId={selected?.id ?? null} />
       <Footer primary={footer.primary} secondary={footer.secondary} />
       {pendingDelete && (

@@ -126,6 +126,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
     const frame = lastFrame() ?? '';
@@ -146,6 +147,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -161,6 +163,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
     await flush();
@@ -179,6 +182,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -199,6 +203,7 @@ describe('ListScreen', () => {
         onAdd={onAdd}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -220,6 +225,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -232,6 +238,7 @@ describe('ListScreen', () => {
     expect(frame).toContain('↑↓/jk');
     expect(frame).toContain('连接');
     expect(frame).toContain('查看密码');
+    expect(frame).toContain('更改主密码');
     expect(frame).toContain('退出');
     unmount();
   });
@@ -244,6 +251,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -265,6 +273,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -283,6 +292,7 @@ describe('ListScreen', () => {
         onAdd={vi.fn()}
         onEdit={vi.fn()}
         onDelete={onDelete}
+        onChangePassword={vi.fn()}
       />,
     );
 
@@ -295,5 +305,65 @@ describe('ListScreen', () => {
     await flush();
     expect(onDelete).toHaveBeenCalledOnce();
     expect(lastFrame()).not.toContain('确认删除');
+  });
+
+  it('opens change-password from c and shows the footer hint', async () => {
+    const onChangePassword = vi.fn();
+    const { stdin, lastFrame } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onChangePassword={onChangePassword}
+      />,
+    );
+    expect(lastFrame()).toContain('更改主密码');
+    await flush();
+    stdin.write('c');
+    await flush();
+    expect(onChangePassword).toHaveBeenCalledOnce();
+  });
+
+  it('does not open change-password while an overlay is open', async () => {
+    const onChangePassword = vi.fn();
+    const { stdin } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onChangePassword={onChangePassword}
+      />,
+    );
+    await flush();
+    stdin.write('p');
+    await flush();
+    stdin.write('c');
+    await flush();
+    expect(onChangePassword).not.toHaveBeenCalled();
+  });
+
+  it('clears the success notice on the next list key', async () => {
+    const onClearNotice = vi.fn();
+    const { stdin, lastFrame } = render(
+      <ListScreen
+        hosts={hosts}
+        onConnect={vi.fn()}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onChangePassword={vi.fn()}
+        notice="主密码已更改"
+        onClearNotice={onClearNotice}
+      />,
+    );
+    expect(lastFrame()).toContain('主密码已更改');
+    await flush();
+    stdin.write('j');
+    await flush();
+    expect(onClearNotice).toHaveBeenCalledOnce();
   });
 });
