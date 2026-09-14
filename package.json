@@ -13,6 +13,10 @@
   ],
   "license": "MIT",
   "author": "ray0324 <ray0324@foxmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ray0324/node-ssh-manager.git"
+  },
   "type": "module",
   "bin": {
     "sshm": "bin/sshm.js"
