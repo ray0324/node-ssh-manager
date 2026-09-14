@@ -1,18 +1,20 @@
 import React from 'react';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
-import {
-  AUTH_BANNER_LINES,
-  AuthBanner,
-} from '../../src/ui/components/AuthBanner.js';
+import { AuthBanner } from '../../src/ui/components/AuthBanner.js';
+
+const version = createRequire(import.meta.url)('../../package.json').version as string;
 
 describe('AuthBanner', () => {
-  it('renders the sshm ASCII mark and tagline', () => {
+  it('renders an open header with title, version, subtitle, and intro', () => {
     const { lastFrame } = render(<AuthBanner />);
     const frame = lastFrame() ?? '';
-    for (const line of AUTH_BANNER_LINES) {
-      expect(frame).toContain(line);
-    }
-    expect(AUTH_BANNER_LINES.every((line) => line.length <= 80)).toBe(true);
+    expect(frame).toContain('sshm');
+    expect(frame).toContain(`v${version}`);
+    expect(frame).toContain('本地加密 SSH 主机管理器');
+    expect(frame).toContain('凭据保存在本机，主密码无法找回');
+    expect(frame).not.toMatch(/[╭┌╰┘│]/);
+    expect(frame).not.toContain('____');
   });
 });

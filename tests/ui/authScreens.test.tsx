@@ -1,24 +1,41 @@
 import React from 'react';
+import { createRequire } from 'node:module';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
-import { AUTH_BANNER_LINES } from '../../src/ui/components/AuthBanner.js';
 import { InitScreen } from '../../src/ui/screens/InitScreen.js';
 import { UnlockScreen } from '../../src/ui/screens/UnlockScreen.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+const version = createRequire(import.meta.url)('../../package.json').version as string;
+
+function expectSharedAuthChrome(frame: string) {
+  expect(frame).toContain('sshm');
+  expect(frame).toContain(`v${version}`);
+  expect(frame).toContain('本地加密 SSH 主机管理器');
+  expect(frame).toContain('凭据保存在本机，主密码无法找回');
+  expect(frame).toContain('主密码:');
+  expect(frame).toContain('─');
+  expect(frame).not.toMatch(/[╭╮╰╯│]/);
+}
 
 describe('auth banners', () => {
-  it('shows the shared banner on init and unlock', () => {
+  it('shows the shared header and password band on init and unlock', () => {
     const init = render(<InitScreen onSubmit={vi.fn()} />).lastFrame() ?? '';
     const unlock = render(<UnlockScreen onSubmit={vi.fn()} />).lastFrame() ?? '';
-    for (const line of AUTH_BANNER_LINES) {
-      expect(init).toContain(line);
-      expect(unlock).toContain(line);
-    }
-    expect(init).toContain('欢迎使用 sshm · 设置主密码');
-    expect(init).toContain('无法找回');
-    expect(unlock).toContain('解锁');
+    expectSharedAuthChrome(init);
+    expectSharedAuthChrome(unlock);
+    expect(init).not.toContain('欢迎使用');
     expect(unlock).not.toContain('解锁 sshm');
+  });
+
+  it('switches the init band to confirm after a valid first password', async () => {
+    const { stdin, lastFrame } = render(<InitScreen onSubmit={vi.fn()} />);
+    await flush();
+    stdin.write('abcd\r');
+    await flush();
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('再次输入:');
+    expect(frame).not.toContain('主密码:');
   });
 });
 

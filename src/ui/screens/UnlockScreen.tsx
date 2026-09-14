@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
-import TextInput from 'ink-text-input';
 import { AuthBanner } from '../components/AuthBanner.js';
+import { AuthPasswordField } from '../components/AuthPasswordField.js';
 
 function stripReturn(value: string): string {
   return value.replace(/\r/g, '');
@@ -42,27 +42,29 @@ export function UnlockScreen({
   };
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <AuthBanner />
-      <Box marginTop={1}>
-        <Text bold>解锁</Text>
+    <Box flexDirection="column">
+      <Box paddingX={1} paddingY={1}>
+        <AuthBanner />
       </Box>
-      <Box marginTop={1}>
-        <Text>主密码: </Text>
-        <TextInput
-          value={pw}
-          onChange={handlePwChange}
-          onSubmit={submit}
-          mask="•"
-          focus={!submitting}
-        />
-      </Box>
+      <AuthPasswordField
+        label="主密码:"
+        value={pw}
+        onChange={handlePwChange}
+        onSubmit={(value) => {
+          void submit(value);
+        }}
+        focus={!submitting}
+      />
       {err && (
-        <Box marginTop={1}>
+        <Box paddingX={1} marginTop={1}>
           <Text color="red">{err}</Text>
         </Box>
       )}
-      {submitting && <Text color="yellow">正在解锁…</Text>}
+      {submitting && (
+        <Box paddingX={1}>
+          <Text color="yellow">正在解锁…</Text>
+        </Box>
+      )}
     </Box>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Box, Text } from 'ink';
-import TextInput from 'ink-text-input';
 import { AuthBanner } from '../components/AuthBanner.js';
+import { AuthPasswordField } from '../components/AuthPasswordField.js';
 
 function stripReturn(value: string): string {
   return value.replace(/\r/g, '');
@@ -67,46 +67,39 @@ export function InitScreen({
   };
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <AuthBanner />
-      <Box marginTop={1} flexDirection="column">
-        <Text bold>欢迎使用 sshm · 设置主密码</Text>
-        <Text color="gray">
-          主密码用于加密所有主机凭据，无法找回，请妥善保管。
-        </Text>
+    <Box flexDirection="column">
+      <Box paddingX={1} paddingY={1}>
+        <AuthBanner />
       </Box>
-      <Box marginTop={1}>
-        <Text>主密码: </Text>
-        {stage === 'first' ? (
-          <TextInput
-            value={pw}
-            onChange={handlePwChange}
-            onSubmit={submitFirst}
-            mask="•"
-            focus={!submitting}
-          />
-        ) : (
-          <Text>{'•'.repeat(pw.length)}</Text>
-        )}
-      </Box>
-      {stage === 'confirm' && (
-        <Box>
-          <Text>再次输入: </Text>
-          <TextInput
-            value={pw2}
-            onChange={handlePw2Change}
-            onSubmit={submitConfirm}
-            mask="•"
-            focus={!submitting}
-          />
-        </Box>
+      {stage === 'first' ? (
+        <AuthPasswordField
+          label="主密码:"
+          value={pw}
+          onChange={handlePwChange}
+          onSubmit={submitFirst}
+          focus={!submitting}
+        />
+      ) : (
+        <AuthPasswordField
+          label="再次输入:"
+          value={pw2}
+          onChange={handlePw2Change}
+          onSubmit={(value) => {
+            void submitConfirm(value);
+          }}
+          focus={!submitting}
+        />
       )}
       {err && (
-        <Box marginTop={1}>
+        <Box paddingX={1} marginTop={1}>
           <Text color="red">{err}</Text>
         </Box>
       )}
-      {submitting && <Text color="yellow">正在创建加密仓库…</Text>}
+      {submitting && (
+        <Box paddingX={1}>
+          <Text color="yellow">正在创建加密仓库…</Text>
+        </Box>
+      )}
     </Box>
   );
 }
