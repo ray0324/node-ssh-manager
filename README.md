@@ -1,72 +1,74 @@
 # node-ssh-manager
 
-单用户本地 TUI SSH 连接管理器。安装后使用命令 `sshm`，主机条目存放在加密 vault 中。
+在终端里管理 SSH 主机。安装后运行 `sshm`，凭据加密存放在本机，主密码无法找回。
+
+## 截图
+
+![解锁界面](docs/screen-01.png)
+
+![主机列表](docs/screen-02.png)
 
 ## 安装
 
 需要 [Node.js](https://nodejs.org/) 18+。
 
-```
+```bash
 npm install -g node-ssh-manager
-```
-
-也可直接运行，不全局安装：
-
-```
-npx --package node-ssh-manager sshm
-```
-
-## 使用
-
-```
 sshm
 ```
 
-首次运行会引导设置主密码并创建空 vault。
+也可以不安装，直接：
 
-## 当前限制
+```bash
+npx --package node-ssh-manager sshm
+```
 
-- 仅支持密码认证（不支持 SSH key / agent / ProxyJump）
-- 单用户、单机本地使用（无多端同步、无团队共享）
-- 无导入/导出，无 SSH config 解析
+首次运行会设置主密码并创建空 vault；之后每次启动用同一主密码解锁。
 
-## 主界面快捷键
+## 快捷键
 
-- `↑` / `↓` 或 `k` / `j`：上下移动
-- `Enter`：连接选中主机
-- `a`：新增主机
-- `e`：编辑选中主机
-- `d`：删除选中主机
-- `p`：查看选中主机的密码
-- `c`：更改主密码
-- `q`：退出
+主机列表：
 
-新增或编辑主机时，使用 `Tab` / `Shift+Tab` 切换字段、`Ctrl+S` 保存、
-`Ctrl+R` 显示或隐藏密码、`Esc` 取消。
+| 按键 | 作用 |
+| --- | --- |
+| `↑` `↓` 或 `k` `j` | 选择主机 |
+| `Enter` | 连接 |
+| `a` | 添加 |
+| `e` | 编辑 |
+| `d` | 删除 |
+| `p` | 查看密码 |
+| `c` | 更改主密码 |
+| `q` | 退出 |
 
-更改主密码时，先输入当前主密码，再输入并确认新主密码。`Esc` 取消。
+添加或编辑主机：`Tab` / `Shift+Tab` 切换字段，`Ctrl+S` 保存，`Ctrl+R` 显示或隐藏密码，`Esc` 取消。
 
-## 文件位置
+更改主密码：先输入当前主密码，再输入并确认新密码；`Esc` 取消。
+
+## 数据与加密
 
 - `~/.sshm/vault.enc` — 加密的主机数据
 - `~/.sshm/known_hosts.json` — 已信任的主机指纹
 
-## 加密说明
+Vault 使用 AES-256-GCM，密钥由主密码经 scrypt 派生。**忘记主密码等于永久丢失全部主机凭据**，没有恢复途径。
 
-Vault 使用 AES-256-GCM 加密，密钥由主密码经 scrypt KDF 派生。**忘记主密码 = 永久丢失所有数据**，没有任何恢复机制，请妥善保管。
+## 限制
 
-## 从源码开发
+- 只支持密码认证，不支持 SSH key、agent、ProxyJump
+- 单用户、单机使用，没有同步或共享
+- 不导入、不导出，也不解析 `~/.ssh/config`
 
-```
+## 从源码运行
+
+```bash
 pnpm install
+pnpm dev
+```
+
+发布构建：
+
+```bash
 pnpm build
 node bin/sshm.js
-```
-
-开发时也可直接：
-
-```
-pnpm dev
 ```
 
 ## License
