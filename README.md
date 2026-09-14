@@ -1,5 +1,7 @@
 # node-ssh-manager
 
+[![npm](https://img.shields.io/npm/v/node-ssh-manager.svg?style=flat-square)](https://www.npmjs.com/package/node-ssh-manager)
+
 在终端里管理 SSH 主机。安装后运行 `sshm`，凭据加密存放在本机，主密码无法找回。
 
 ## 截图
